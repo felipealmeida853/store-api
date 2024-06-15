@@ -53,7 +53,7 @@ Set the following environment variables in `.env` with your S3-compatible object
 
 ## Usage
 
-1.  **Run the dependencies (MongoDB)**:
+1. **Run the dependencies (MongoDB)**:
 
     ```sh
         docker compose up -d
