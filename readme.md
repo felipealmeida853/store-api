@@ -1,6 +1,7 @@
 # Document Storage API
 
-This is a simple API to store, retrieve, and delete any type of documents in a bucket. The API uses FastAPI for handling HTTP requests and boto3 for interacting with an object store that uses the S3 interface.
+This is a simple API to store, retrieve, and delete any type of documents in a bucket. The API uses FastAPI for handling
+HTTP requests and boto3 for interacting with an object store that uses the S3 interface.
 
 ## Features
 
@@ -39,7 +40,8 @@ This is a simple API to store, retrieve, and delete any type of documents in a b
 
 ## Configuration
 
-Before running the API, you need to configure your S3-compatible object store credentials. You can do this by setting environment variables or by using a configuration file.
+Before running the API, you need to configure your S3-compatible object store credentials. You can do this by setting
+environment variables or by using a configuration file.
 
 ### Environment Variables
 
@@ -50,6 +52,7 @@ Set the following environment variables in `.env` with your S3-compatible object
 - `BUCKET_ACCESS_KEY_ID`
 - `BUCKET_SECRET_ACCESS_KEY`
 - `BUCKET_ENDPOINT_URL` (if applicable)
+- `BUCKET_NAME`
 
 ## Usage
 
