@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import files, folders
+from app.routers import files, folders, user
 
 logger = logging.getLogger(__name__)
 app = FastAPI()
@@ -16,6 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(router=user.router, tags=["User"], prefix='/api/user')
 app.include_router(router=files.router, tags=["File"], prefix='/api/file')
 app.include_router(router=folders.router, tags=["Folder"], prefix='/api/folder')
 

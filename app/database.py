@@ -9,6 +9,6 @@ db = client[settings.MONGO_INITDB_DATABASE]
 User = db.users
 File = db.files
 Folder = db.folder
-User.create_index([("email", pymongo.ASCENDING)], unique=True)
+User.create_index([("username", pymongo.ASCENDING)], unique=True)
 File.create_index([("name", pymongo.ASCENDING)], unique=False)
 Folder.create_index([("name", pymongo.ASCENDING)], unique=False)

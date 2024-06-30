@@ -53,6 +53,9 @@ Set the following environment variables in `.env` with your S3-compatible object
 - `BUCKET_SECRET_ACCESS_KEY`
 - `BUCKET_ENDPOINT_URL` (if applicable)
 - `BUCKET_NAME`
+- `JWT_SECRET (genarete with openssl rand -hex 32)`
+- `JWT_ALGORITHM (can be HS256)`
+- `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
 
 ## Usage
 

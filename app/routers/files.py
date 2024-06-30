@@ -3,14 +3,16 @@ import logging
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, status, HTTPException, UploadFile
-from fastapi import Response
+import jwt
+from fastapi import APIRouter, status, HTTPException, UploadFile, Depends
+from fastapi import Response, Request
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTasks
 
 from app.config import settings
 from app.database import File as FileDB
 from app.extensions.s3 import S3Bucket
+from app.routers.user import jwt_required
 from app.schemas import FileBaseSchema
 from app.utils import remove_file
 
@@ -18,10 +20,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/{folder_uuid}/save", status_code=status.HTTP_201_CREATED)
+@router.post("/{folder_uuid}/save", status_code=status.HTTP_201_CREATED,
+             dependencies=[Depends(jwt_required)])
 async def save(
         folder_uuid: str,
         file: UploadFile,
+        request: Request
 ):
     try:
         key = f"{str(uuid.uuid4())}_{file.filename}"
@@ -35,10 +39,16 @@ async def save(
         )
 
     try:
+        token_bearer = request.headers.get('Authorization')
+        username = ""
+        if token_bearer:
+            token_split = token_bearer.split(" ")
+            token_data = jwt.decode(token_split[1], settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            username = token_data.get("sub")
         FileDB.insert_one(
             FileBaseSchema(
                 name=file.filename,
-                user_uuid="",
+                user=username,
                 folder_uuid=folder_uuid,
                 key=key,
                 created_at=datetime.utcnow(),
@@ -54,15 +64,21 @@ async def save(
     return {"message": f"File saved with success {key}"}
 
 
-@router.get("/all", status_code=status.HTTP_200_OK)
-async def all_files():
+@router.get("/all", status_code=status.HTTP_200_OK, dependencies=[Depends(jwt_required)])
+async def all_files(request: Request):
     try:
+        token_bearer = request.headers.get('Authorization')
+        username = ""
+        if token_bearer:
+            token_split = token_bearer.split(" ")
+            token_data = jwt.decode(token_split[1], settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            username = token_data.get("sub")
         files = []
-        for f in FileDB.find({}):
+        for f in FileDB.find({"user": username}):
             files.append(
                 FileBaseSchema(
                     name=f.get("name", ""),
-                    user_uuid=f.get("user_uuid", ""),
+                    user=f.get("user", ""),
                     folder_uuid=f.get("folder_uuid", ""),
                     key=f.get("key", ""),
                     created_at=str(f.get("created_at", "")),
@@ -80,17 +96,24 @@ async def all_files():
     return Response(content=json.dumps(files, indent=4, sort_keys=True, default=str), media_type="application/json")
 
 
-@router.get("/folder/{folder_uuid}/all", status_code=status.HTTP_200_OK)
+@router.get("/folder/{folder_uuid}/all", status_code=status.HTTP_200_OK, dependencies=[Depends(jwt_required)])
 async def all_files_by_folder(
-        folder_uuid: str
+        folder_uuid: str,
+        request: Request,
 ):
     try:
+        token_bearer = request.headers.get('Authorization')
+        username = ""
+        if token_bearer:
+            token_split = token_bearer.split(" ")
+            token_data = jwt.decode(token_split[1], settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            username = token_data.get("sub")
         files = []
-        for f in FileDB.find({"folder_uuid": folder_uuid}):
+        for f in FileDB.find({"folder_uuid": folder_uuid, "user": username}):
             files.append(
                 FileBaseSchema(
                     name=f.get("name", ""),
-                    user_uuid=f.get("user_uuid", ""),
+                    user=f.get("user", ""),
                     folder_uuid=f.get("folder_uuid", ""),
                     key=f.get("key", ""),
                     created_at=str(f.get("created_at", "")),
@@ -107,14 +130,29 @@ async def all_files_by_folder(
     return Response(content=json.dumps(files, indent=4, sort_keys=True, default=str), media_type="application/json")
 
 
-@router.get("/download/{key}", status_code=status.HTTP_200_OK)
+@router.get("/download/{key}", status_code=status.HTTP_200_OK, dependencies=[Depends(jwt_required)])
 async def download(
         key: str,
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
+        request: Request,
 ):
     try:
-        s3 = S3Bucket()
-        path = s3.get_file(key)
+        token_bearer = request.headers.get('Authorization')
+        username = ""
+        if token_bearer:
+            token_split = token_bearer.split(" ")
+            token_data = jwt.decode(token_split[1], settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            username = token_data.get("sub")
+
+        file = FileDB.find_one({"key": key, "user": username})
+        if file:
+            s3 = S3Bucket()
+            path = s3.get_file(file.key)
+        else:
+            return HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Not Found"
+            )
     except Exception as e:
         logger.error(f"Error downloading file {key}, Error: {e}")
         return HTTPException(
@@ -126,12 +164,21 @@ async def download(
     return FileResponse(path)
 
 
-@router.delete("/delete/{key}", status_code=status.HTTP_200_OK)
-async def delete(key: str):
+@router.delete("/delete/{key}", status_code=status.HTTP_200_OK, dependencies=[Depends(jwt_required)])
+async def delete(key: str, request: Request):
     try:
-        s3 = S3Bucket()
-        s3.delete_file(key)
-        FileDB.delete_one({"key": key})
+        token_bearer = request.headers.get('Authorization')
+        username = ""
+        if token_bearer:
+            token_split = token_bearer.split(" ")
+            token_data = jwt.decode(token_split[1], settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+            username = token_data.get("sub")
+
+        file = FileDB.find_one({"key": key, "user": username})
+        if file:
+            s3 = S3Bucket()
+            s3.delete_file(key)
+            FileDB.delete_one({"key": key})
     except Exception as e:
         logger.error(f"Error on download file {key}, error: {e}")
         return HTTPException(

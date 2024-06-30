@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     BUCKET_SECRET_ACCESS_KEY: str
     BUCKET_ENDPOINT_URL: str
     BUCKET_NAME: str
+    JWT_SECRET: str
+    JWT_ALGORITHM: str
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     class Config:
         env_file = "../.env"
