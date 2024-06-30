@@ -147,7 +147,7 @@ async def download(
         file = FileDB.find_one({"key": key, "user": username})
         if file:
             s3 = S3Bucket()
-            path = s3.get_file(file.key)
+            path = s3.get_file(file.get("key"))
         else:
             return HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
